@@ -105,7 +105,6 @@ class VociBot(telepot.helper.ChatHandler):
             self.sender.sendMessage(strings.helptext,
                                     parse_mode='Markdown')
 
-
     def sendwrapper(self, messages):
         print('sendwrapper: aufgerufen')
         # Sendet mehrere Nachrichten auf einmal.
@@ -193,12 +192,13 @@ class ConvoHandler(object):
         if len(self._messages) <= 4:
             tmp = [x for x in self._messages]
             self.done = True
-        elif len(self._messages) > 4:
+        else:
             tmp = self._messages[self._nextind]
             self._nextind += 1
             if len(self._messages) == self._nextind:
                 self.done = True
         return tmp
+
 
 bot = telepot.DelegatorBot(TOKEN, [
     include_callback_query_chat_id(
