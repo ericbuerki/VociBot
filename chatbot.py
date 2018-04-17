@@ -1,14 +1,16 @@
 import sys
 import time
 import telepot
+import telepot.helper
 from telepot.loop import MessageLoop
-from telepot.delegate import per_chat_id, create_open, pave_event_space
+from telepot.namedtuple import InlineKeyboardMarkup, InlineKeyboardButton
+from telepot.delegate import (
+    per_chat_id, create_open, pave_event_space, include_callback_query_chat_id)
 
 import urllib3
 
 import suche
 import strings
-
 
 with open('../keytesting.txt') as f:
     TOKEN = f.read().replace('\n', '')
@@ -16,7 +18,16 @@ with open('../keytesting.txt') as f:
 s = suche.Searcher()
 
 
+#class VociBot(telepot.helper.InlineUserHandler, telepot.helper.AnswererMixin):
 class VociBot(telepot.helper.ChatHandler):
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+        InlineKeyboardButton(text=strings.options[0],
+                             callback_data='continue'),
+        InlineKeyboardButton(text=strings.options[1],
+                             callback_data='abort')
+
+    ]])
+
     def __init__(self, *args, **kwargs):
         super(VociBot, self).__init__(*args, **kwargs)
 
@@ -29,36 +40,9 @@ class VociBot(telepot.helper.ChatHandler):
         # Objekt für die Bearbeitung von Konversationen
         self.convohandler = None
 
-    '''
-    def on_chat_message(self, msg):
-        content_type, chat_type, chat_id = telepot.glance(msg)
-        print('content_type:  %s' % content_type)
-        print('chat_type:  %s' % chat_type)
-        print('chat_id:  %s' % chat_id)
-        print('msg[\'text\']:  %s' % msg['text'])
-        if content_type == 'text':
-            if msg['text'].startswith('/') or msg['text'] in strings.options:
-                print('optionen')
-                # Kommandos
-                self.funhandler(msg['text'])
-            else:
-                print('kommandos')
-                if self._newsession:
-                    # Initialisiert ConvoHandler bei neuer Sitzung neu
-                    self.convohandler = ConvoHandler(msg['text'])
-                    self._newsession = False
-                    self.sender.sendMessage(self.convohandler.next(),
-                                            parse_mode='Markdown')
-                    self.sendoptions()
-                elif self.convohandler.done:
-                    print('self.convohandler: %s' % self.convohandler.done)
-                    # Initialisiert ConvoHandler nach Abschluss der
-                    # Suchanfrage neu
-                    self.convohandler = ConvoHandler(msg['text'])
-                if not self.convohandler.done:
-                    # self.convohandler.feed(msg['text'])
-                    self.funhandler(msg['text'])
-    '''
+        # Zeugs für Callback-Handler
+        self._edit_msg_ident = None
+        self._editor = None
 
     def on_chat_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance(msg)
@@ -67,12 +51,14 @@ class VociBot(telepot.helper.ChatHandler):
         print('chat_id:  %s' % chat_id)
         print('msg[\'text\']:  %s' % msg['text'])
 
+        if msg['text'].startswith('/'):
+            self.funhandler(msg['text'])
         if self._newsession:
             # Initialisiert ConvoHandler bei neuer Sitzung neu
             self.convohandler = ConvoHandler(msg['text'])
             self._newsession = False
             self.sendwrapper(self.convohandler.next())
-            self.sendoptions()
+            # self.sendoptions()
         elif self.convohandler.done:
             print('self.convohandler: %s' % self.convohandler.done)
             # Initialisiert ConvoHandler nach Abschluss der
@@ -83,40 +69,75 @@ class VociBot(telepot.helper.ChatHandler):
             # self.convohandler.feed(msg['text'])
             self.funhandler(msg['text'])
 
+    def _cancel_last(self):
+        if self._editor:
+            self._editor.editMessageReplyMarkup(reply_markup=None)
+            self._editor = None
+            self._edit_msg_ident = None
+
+    def on_callback_query(self, msg):
+        print('self.on_callback_query')
+        query_id, from_id, query_data = telepot.glance(msg,
+                                                       flavor='callback_query')
+
+        if query_data == 'continue':
+            self._cancel_last()
+            self.sendwrapper(self.convohandler.next())
+        else:
+            self.bot.answerCallbackQuery(query_id,
+                                         text=strings.abort_inline)
+            self._cancel_last()
+            self.convohandler.done = True
+
     def funhandler(self, msgtext):
         if '/help' in msgtext:
             print('funhandler(): Zeige Hilfe an')
-            self.sender.sendMessage(strings.helptext, parse_mode='Markdown')
+            self.sender.sendMessage(strings.helptext,
+                                    parse_mode='Markdown')
         elif '/info' in msgtext:
             print('funhandler(): Zeige Infos an')
-            self.sender.sendMessage(strings.infotext, parse_mode='Markdown')
-        elif strings.options[0] == msgtext:     # Weiter
-            #self.sender.sendMessage(self.convohandler.next(),
-            #                        parse_mode='Markdown')
-            self.sendwrapper(self.convohandler.next())
-        elif strings.options[1] == msgtext:     # Abbrechen
-            self.convohandler.done = True
-            self.sender.sendMessage(strings.aborttext, parse_mode='Markdown')
+            self.sender.sendMessage(strings.infotext,
+                                    parse_mode='Markdown')
+        else:
+            self.sender.sendMessage(strings.invalid_command % msgtext,
+                                    parse_mode='Markdown')
+            self.sender.sendMessage(strings.helptext,
+                                    parse_mode='Markdown')
 
-    def sendoptions(self):
-        buttons = {'keyboard': [strings.options]}
-        self.sender.sendMessage('Optionen:',
-                                reply_markup=buttons)
 
     def sendwrapper(self, messages):
+        print('sendwrapper: aufgerufen')
         # Sendet mehrere Nachrichten auf einmal.
-        if isinstance(messages,list):
-            for message in messages:
-                self.sender.sendMessage(message, parse_mode='Markdown',
-                                        reply_markup=None)
-        elif isinstance(messages,str):
-            self.sender.sendMessage(messages, parse_mode='Markdown',
-                                    reply_markup=None)
+        if isinstance(messages, list):
+            print('sendwrapper: messages ist list')
+            for message in messages[:-1]:
+                self.sender.sendMessage(message,
+                                        parse_mode='Markdown')
+            if not self.convohandler.done:
+                # Es gibt noch weitere Ergebnisse
+                self.sendquerymessage(messages[-1])
+            else:
+                # Letzter Eintrag
+                self.sender.sendMessage(messages[-1],
+                                        parse_mode='Markdown')
+        elif isinstance(messages, str):
+            print('sendwrapper: messages ist str')
+            if not self.convohandler.done:
+                self.sendquerymessage(messages)
+            else:
+                self.sender.sendMessage(messages,
+                                        parse_mode='Markdown')
         else:
             print('Fehler: message muss str oder list sein, ist %s.' %
                   type(messages))
             raise TypeError
 
+    def sendquerymessage(self, message):
+        sent = self.sender.sendMessage(message,
+                                       parse_mode='Markdown',
+                                       reply_markup=self.keyboard)
+        self._editor = telepot.helper.Editor(self.bot, sent)
+        self._edit_msg_ident = telepot.message_identifier(sent)
 
 
 # Klasse, die die Konversation übernimmt
@@ -164,7 +185,7 @@ class ConvoHandler(object):
         end = time.time()
         self._messages.append('%s Treffer in %.4f s' %
                               (sum((len(x) for x in m.matches_fin)),
-                               end-start))
+                               end - start))
         self._finparse = True
 
     def next(self):
@@ -175,17 +196,10 @@ class ConvoHandler(object):
         return tmp
 
 
-    # Füttert ConvoHandler mit Weiteren Eingaben
-    def feed(self, msgtext):
-        pass
-
-
-
-
 bot = telepot.DelegatorBot(TOKEN, [
-    pave_event_space()(
-        per_chat_id(), create_open, VociBot, timeout=60
-    ),
+    include_callback_query_chat_id(
+        pave_event_space())(
+            per_chat_id(), create_open, VociBot, timeout=60),
 ])
 
 MessageLoop(bot).run_as_thread()

@@ -43,4 +43,9 @@ rtm_error = '*🚨 Fehler 🚨:* Zeitüberschreitung beim Lesen.\n' \
             'Wiederholen Sie ihre Anfrage in %s s. Ich bitte vielmals um ' \
             'Entschuldigung.'
 
-options = ['*weiter*','*abbrechen*']
+invalid_command = 'Kommando %s ist ungültig.'
+
+# options = ['*weiter*','*abbrechen*']
+options = ['weiter','abbrechen']
+
+abort_inline = 'Abgebrochen. Viel Spass beim weitersuchen.'
