@@ -281,6 +281,7 @@ def parsematches(data):
     return parseddata
 '''
 
+
 def parsematches(data):
     # data = [[{},{}, ...],
     #         [{},{}, ...],
@@ -296,7 +297,7 @@ def parsematches(data):
             splitted = False
             for _entry in subset:
                 str_temp += parsedict(_entry)
-                if (len(str_temp) - lastlen) > 3700:
+                if (len(str_temp) - lastlen) > 1500:
                     splitted = True
                     parseddata.append(str_temp[lastlen:]+'\n(…)\n')
                     lastlen = len(str_temp)
@@ -308,6 +309,7 @@ def parsematches(data):
         # print(lentemp)
 
     return parseddata
+
 
 def parsedict(match):
     # print('parsedict(match):')

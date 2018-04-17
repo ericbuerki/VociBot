@@ -2,6 +2,7 @@ import sys
 import time
 import telepot
 from telepot.loop import MessageLoop
+from telepot.namedtuple import ReplyKeyboardRemove
 from telepot.delegate import per_chat_id, create_open, pave_event_space
 
 import urllib3
@@ -28,6 +29,8 @@ class VociBot(telepot.helper.ChatHandler):
 
         # Objekt für die Bearbeitung von Konversationen
         self.convohandler = None
+
+        self.buttons = {'keyboard': [strings.options]}
 
     '''
     def on_chat_message(self, msg):
@@ -67,21 +70,25 @@ class VociBot(telepot.helper.ChatHandler):
         print('chat_id:  %s' % chat_id)
         print('msg[\'text\']:  %s' % msg['text'])
 
-        if self._newsession:
+        if msg['text'].startswith('/') or msg['text'].startswith('*'):
+            self.funhandler(msg['text'])
+        elif self._newsession:
             # Initialisiert ConvoHandler bei neuer Sitzung neu
             self.convohandler = ConvoHandler(msg['text'])
             self._newsession = False
             self.sendwrapper(self.convohandler.next())
-            self.sendoptions()
+            # self.sendoptions()
         elif self.convohandler.done:
-            print('self.convohandler: %s' % self.convohandler.done)
+            print('self.convohandler.done: %s' % self.convohandler.done)
             # Initialisiert ConvoHandler nach Abschluss der
             # Suchanfrage neu
             self.convohandler = ConvoHandler(msg['text'])
             self.sendwrapper(self.convohandler.next())
+        '''
         elif not self.convohandler.done:
             # self.convohandler.feed(msg['text'])
             self.funhandler(msg['text'])
+        '''
 
     def funhandler(self, msgtext):
         if '/help' in msgtext:
@@ -91,12 +98,14 @@ class VociBot(telepot.helper.ChatHandler):
             print('funhandler(): Zeige Infos an')
             self.sender.sendMessage(strings.infotext, parse_mode='Markdown')
         elif strings.options[0] == msgtext:     # Weiter
-            #self.sender.sendMessage(self.convohandler.next(),
-            #                        parse_mode='Markdown')
+            # self.sender.sendMessage(self.convohandler.next(),
+            #                         parse_mode='Markdown')
             self.sendwrapper(self.convohandler.next())
         elif strings.options[1] == msgtext:     # Abbrechen
             self.convohandler.done = True
-            self.sender.sendMessage(strings.aborttext, parse_mode='Markdown')
+            self.sender.sendMessage(strings.aborttext,
+                                    parse_mode='Markdown',
+                                    reply_markup=ReplyKeyboardRemove())
 
     def sendoptions(self):
         buttons = {'keyboard': [strings.options]}
@@ -104,19 +113,41 @@ class VociBot(telepot.helper.ChatHandler):
                                 reply_markup=buttons)
 
     def sendwrapper(self, messages):
+        buttons = {'keyboard': [strings.options]}
+        print('sendwrapper: Aufruf')
         # Sendet mehrere Nachrichten auf einmal.
-        if isinstance(messages,list):
-            for message in messages:
-                self.sender.sendMessage(message, parse_mode='Markdown',
-                                        reply_markup=None)
-        elif isinstance(messages,str):
-            self.sender.sendMessage(messages, parse_mode='Markdown',
-                                    reply_markup=None)
+        if isinstance(messages, list):
+            print('sendwrapper: list')
+            for message in messages[:-1]:
+                self.sender.sendMessage(message,
+                                        parse_mode='Markdown',
+                                        reply_markup=ReplyKeyboardRemove())
+            if not self.convohandler.done:
+                print('convohanler not done')
+                self.sender.sendMessage(messages[-1],
+                                        parse_mode='Markdown',
+                                        reply_markup=buttons)
+                # self.sendoptions()
+            else:
+                self.sender.sendMessage(messages[-1],
+                                        parse_mode='Markdown',
+                                        reply_markup=ReplyKeyboardRemove())
+        elif isinstance(messages, str):
+            print('sendwrapper: str')
+            if not self.convohandler.done:
+                print('convohanler not done')
+                self.sender.sendMessage(messages,
+                                        parse_mode='Markdown',
+                                        reply_markup=buttons)
+                # self.sendoptions()
+            else:
+                self.sender.sendMessage(messages,
+                                        parse_mode='Markdown',
+                                        reply_markup=ReplyKeyboardRemove())
         else:
             print('Fehler: message muss str oder list sein, ist %s.' %
                   type(messages))
             raise TypeError
-
 
 
 # Klasse, die die Konversation übernimmt
@@ -168,18 +199,17 @@ class ConvoHandler(object):
         self._finparse = True
 
     def next(self):
-        tmp = self._messages[self._nextind]
-        self._nextind += 1
-        if len(self._messages) == self._nextind:
+        print('self.done: %s\nself._nextind: %s' % (self.done, self._nextind))
+        if len(self._messages) <= 4:
+            tmp = [x for x in self._messages]
             self.done = True
+        elif len(self._messages)-1 == self._nextind:
+            tmp = self._messages[-2:]
+            self.done = True
+        else:
+            tmp = self._messages[self._nextind]
+            self._nextind += 1
         return tmp
-
-
-    # Füttert ConvoHandler mit Weiteren Eingaben
-    def feed(self, msgtext):
-        pass
-
-
 
 
 bot = telepot.DelegatorBot(TOKEN, [

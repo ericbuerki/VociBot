@@ -43,4 +43,4 @@ rtm_error = '*🚨 Fehler 🚨:* Zeitüberschreitung beim Lesen.\n' \
             'Wiederholen Sie ihre Anfrage in %s s. Ich bitte vielmals um ' \
             'Entschuldigung.'
 
-options = ['*weiter*','*abbrechen*']
+options = ['*weiter*', '*abbrechen*']
