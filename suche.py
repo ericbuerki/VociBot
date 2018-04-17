@@ -420,6 +420,6 @@ if __name__ == '__main__':
     print(ltemp)
     print('Durchschnit:\t%.2f' % (sum(ltemp)/len(ltemp)))
     print('Maximum:\t%s\nMinimum:\t%s' % (max(ltemp), min(ltemp)))
-    toomuch = [x for x in ltemp if x>4000]
+    toomuch = [x for x in ltemp if x > 4000]
     print('%s Nachrichten zu gross:' % len(toomuch))
     print(toomuch)

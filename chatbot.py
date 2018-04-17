@@ -87,7 +87,8 @@ class VociBot(telepot.helper.ChatHandler):
             self.bot.answerCallbackQuery(query_id,
                                          text=strings.abort_inline)
             self._cancel_last()
-            self.convohandler.done = True
+            if self.convohandler:
+                self.convohandler.done = True
 
     def funhandler(self, msgtext):
         if '/help' in msgtext:
@@ -189,12 +190,15 @@ class ConvoHandler(object):
         self._finparse = True
 
     def next(self):
-        tmp = self._messages[self._nextind]
-        self._nextind += 1
-        if len(self._messages) == self._nextind:
+        if len(self._messages) <= 4:
+            tmp = [x for x in self._messages]
             self.done = True
+        elif len(self._messages) > 4:
+            tmp = self._messages[self._nextind]
+            self._nextind += 1
+            if len(self._messages) == self._nextind:
+                self.done = True
         return tmp
-
 
 bot = telepot.DelegatorBot(TOKEN, [
     include_callback_query_chat_id(
