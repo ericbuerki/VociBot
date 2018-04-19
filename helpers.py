@@ -35,6 +35,18 @@ def sendfeedback(message):
 
 
 class TelemetryHandler(object):
+    """
+    Speichert Daten zu den Nutzerinteraktionen.
+    {'message_id': 851,
+     'from': {'id': 415691257, 'is_bot': False,
+              'first_name': 'Eric', 'last_name': 'Bürki',
+               'username': 'ericbuerki', 'language_code': 'de'},
+     'chat': {'id': 415691257,
+              'first_name': 'Eric', 'last_name': 'Bürki',
+              'username': 'ericbuerki', 'type': 'private'},
+     'date': 1524149831, 'text': 'hallo'}
+
+    """
     def __init__(self, message):
         pass
 
