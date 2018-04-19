@@ -1,10 +1,14 @@
 
 import telepot
 
+import private
+
+'''
 with open('../keyfeedback.txt') as f:
     TOKEN = f.read().replace('\n', '')
 
 DEV_ID = '415691257'
+'''
 
 bot = telepot.Bot(TOKEN)
 print('FeedbackBot läuft.')
