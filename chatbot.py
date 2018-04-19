@@ -9,6 +9,7 @@ import urllib3
 
 import suche
 import strings
+import helpers
 
 
 with open('../keytesting.txt') as f:
@@ -31,6 +32,9 @@ class VociBot(telepot.helper.ChatHandler):
         self.convohandler = None
 
         self.buttons = {'keyboard': [strings.options]}
+
+        # True, wenn Feedback erwartet wird
+        self._await_feedback = False
 
     '''
     def on_chat_message(self, msg):
@@ -70,25 +74,31 @@ class VociBot(telepot.helper.ChatHandler):
         print('chat_id:  %s' % chat_id)
         print('msg[\'text\']:  %s' % msg['text'])
 
-        if msg['text'].startswith('/') or msg['text'].startswith('*'):
+        if self._await_feedback:
+            # Stellt sicher, dass Feedback eingelesen wird
+            if feedback.sendfeedback(msg):
+                self.sender.sendMessage(strings.fb_success,
+                                        parse_mode='Markdown')
+                self._await_feedback = False
+            else:
+                self.sender.sendMessage(strings.fb_error,
+                                        parse_mode='Markdown')
+        elif msg['text'].startswith('/') or msg['text'].startswith('*'):
+            # Liest Kommandos und MarkupKeyboardeingaben aus
             self.funhandler(msg['text'])
         elif self._newsession:
+
             # Initialisiert ConvoHandler bei neuer Sitzung neu
             self.convohandler = ConvoHandler(msg['text'])
             self._newsession = False
             self.sendwrapper(self.convohandler.next())
             # self.sendoptions()
         elif self.convohandler.done:
-            print('self.convohandler.done: %s' % self.convohandler.done)
             # Initialisiert ConvoHandler nach Abschluss der
             # Suchanfrage neu
+            print('self.convohandler.done: %s' % self.convohandler.done)
             self.convohandler = ConvoHandler(msg['text'])
             self.sendwrapper(self.convohandler.next())
-        '''
-        elif not self.convohandler.done:
-            # self.convohandler.feed(msg['text'])
-            self.funhandler(msg['text'])
-        '''
 
     def funhandler(self, msgtext):
         if '/help' in msgtext:
@@ -97,13 +107,23 @@ class VociBot(telepot.helper.ChatHandler):
         elif '/info' in msgtext:
             print('funhandler(): Zeige Infos an')
             self.sender.sendMessage(strings.infotext, parse_mode='Markdown')
+        elif '/feedback' in msgtext:
+            print('funhandler() Feedback')
+            self.sender.sendMessage(strings.fb_text, parse_mode='Markdown')
+            self._await_feedback = True
         elif strings.options[0] == msgtext:     # Weiter
             # self.sender.sendMessage(self.convohandler.next(),
             #                         parse_mode='Markdown')
-            self.sendwrapper(self.convohandler.next())
+            if not self._newsession and self.convohandler:
+                if not self.convohandler.done:
+                    self.sendwrapper(self.convohandler.next())
         elif strings.options[1] == msgtext:     # Abbrechen
             self.convohandler.done = True
             self.sender.sendMessage(strings.aborttext,
+                                    parse_mode='Markdown',
+                                    reply_markup=ReplyKeyboardRemove())
+        else:
+            self.sender.sendMessage(strings.unknown_warning,
                                     parse_mode='Markdown',
                                     reply_markup=ReplyKeyboardRemove())
 
@@ -150,8 +170,11 @@ class VociBot(telepot.helper.ChatHandler):
             raise TypeError
 
 
-# Klasse, die die Konversation übernimmt
 class ConvoHandler(object):
+    """
+    Übernimmt die Kommunikation während des Suchprozesses.
+    Portioniert die Nachrichten fürs Senden.
+    """
     def __init__(self, msgtext):
 
         print('ConvoHandler initialisiert')
@@ -214,7 +237,7 @@ class ConvoHandler(object):
 
 bot = telepot.DelegatorBot(TOKEN, [
     pave_event_space()(
-        per_chat_id(), create_open, VociBot, timeout=60
+        per_chat_id(), create_open, VociBot, timeout=600
     ),
 ])
 

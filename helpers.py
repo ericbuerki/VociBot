@@ -9,6 +9,7 @@ DEV_ID = '415691257'
 bot = telepot.Bot(TOKEN)
 print('FeedbackBot läuft.')
 
+
 def sendfeedback(message):
     """
     Sendet Feedback an den Entwickler
@@ -31,6 +32,11 @@ def sendfeedback(message):
     return True
     # except as err:
     #    return False
+
+
+class TelemetryHandler(object):
+    def __init__(self, message):
+        pass
 
 
 if __name__ == "__main__":
