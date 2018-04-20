@@ -7,7 +7,9 @@ import csv
 from unidecode import unidecode
 import pyexcel
 
-csvpath = 'processed/voci_escapd.csv'
+import pprint
+
+csvpath = 'data/voci_escapd.csv'
 
 
 class Searcher(object):
@@ -57,7 +59,8 @@ class Searcher(object):
             matched = False
             for j in good_columns:
                 if not matched:
-                    if unidecode(self.query) in unidecode(self.voci_list[i][j]).lower():
+                    if unidecode(self.query) in unidecode(self.voci_list[i][j])\
+                            .lower():
                         match_ind.append([i, j])
                         matches.append(self.voci_list[i])
                         matched = True
@@ -103,22 +106,18 @@ class Matches(object):
             print('%s == \'all\'' % mod)
             self.gc = [1, 2, 3, 4, 7, 9, 13]
 
+        self._matches_a = []    # Exakte Treffer
+        self._matches_b = []    # Treffer (Anfang/Ende von Wort)
+        self._matches_c = []    # Weniger Exakte Treffer (in Wort)
+
         self.order()
         self.dedup()
 
     def order(self):
 
-        # Treffer mit ganz viel Scharf
-        matches_top = []
-
-        # Treffer (scharf)
-        matches = []
-
-        # Treffer (unscharf)
-        matches_alt = []
-        taken = []
 
         ind = list(range(len(self.matches_raw)))
+        '''
         for i in ind:
             matched = False
             for j in self.gc:
@@ -129,20 +128,78 @@ class Matches(object):
                             .endswith(unidecode(self.query)):
                         if unidecode(self.matches_raw[i][j]).lower() == \
                                 unidecode(self.query):
-                            matches_top.append(self.matches_raw[i])
+                            matches_a.append(self.matches_raw[i])
                         else:
-                            matches.append(self.matches_raw[i])
+                            matches_b.append(self.matches_raw[i])
                         taken.append(i)
                         matched = True
+        '''
 
-        good_ind = [x for x in ind if x not in taken]
-        for i in good_ind:
-            matches_alt.append(self.matches_raw[i])
+        for entry in self.matches_raw:
+            for j in self.gc:
+                if ',' in entry[j] or ' ' in entry[j]:
 
-        self.matches_list = [matches_top,
-                             matches,
-                             matches_alt]
-        # print(matches_top)
+                    if ',' in entry[j]:
+                        subentries = entry[j].split(',')
+                    else:
+                        subentries = entry[j].split(' ')
+
+                    matched_a = False
+                    matched_b = False
+
+                    for subentry in subentries:
+
+                        if unidecode(subentry).lower() == unidecode(self.query):
+                            matched_a = True
+                        elif unidecode(subentry).lower() \
+                                .startswith(unidecode(self.query)) or \
+                                unidecode(subentry).lower() \
+                                .endswith(unidecode(self.query)):
+                            matched_b = True
+
+                    if matched_a:
+                        self._matches_a.append(entry)
+                    elif matched_b:
+                        self._matches_b.append(entry)
+                    else:
+                        self._matches_c.append(entry)
+
+                else:
+                    if unidecode(entry[j]).lower() == unidecode(self.query):
+                        self._matches_a.append(entry)
+                    elif unidecode(entry[j]).lower() \
+                            .startswith(unidecode(self.query)) or \
+                            unidecode(entry[j]).lower() \
+                            .endswith(unidecode(self.query)):
+                        self._matches_b.append(entry)
+                    else:
+                        self._matches_c.append(entry)
+
+        # for i in (x for x in ind if x not in taken):
+        #    matches_c.append(self.matches_raw[i])
+
+        self.matches_list = [self._matches_a,
+                             self._matches_b,
+                             self._matches_c]
+        # print(matches_a)
+
+    '''
+    def _check_field(self, entry, j, subentry=None):
+        if not subentry:
+            field = entry[j]
+        else:
+            field = subentry
+
+        if unidecode(field).lower() == unidecode(self.query):
+            self._matches_a.append(entry)
+        elif unidecode(field).lower() \
+                .startswith(unidecode(self.query)) or \
+                unidecode(field).lower() \
+                .endswith(unidecode(self.query)):
+            self._matches_b.append(entry)
+        else:
+            self._matches_c.append(entry)
+    '''
 
     def dedup(self):
 
@@ -185,9 +242,8 @@ class Matches(object):
                 # Treffer, nach Zeile aufgeteilt
                 # m_bc = list(zip(*temp))
                 merkmale = []
-                a = 0
 
-                for mm_temp in zip(*temp):
+                for a, mm_temp in enumerate(zip(*temp)):
                     if a is not 7:
                         merkmale.append(list(set(mm_temp)))
                     else:
@@ -200,8 +256,6 @@ class Matches(object):
                             inputtemp.append([dt, l_temp])
 
                         merkmale.append(inputtemp)
-
-                    a += 1
 
                 d_temp['l'].append(merkmale[12])
                 d_temp['ger'].append(merkmale[7])
@@ -252,35 +306,6 @@ class Matches(object):
 
         self.matches_fin = fin_temp
 
-'''
-def parsematches(data):
-    # data = [[{},{}, ...],
-    #         [{},{}, ...],
-    #         [{},{}, ...]]
-    parseddata = []
-    for subset in data:
-        if not subset:
-            continue
-        else:
-            str_temp = ''
-            lentemp = []
-            for _entry in subset:
-                str_temp += parsedict(_entry)
-                lentemp.append(len(str_temp))
-        if max(lentemp) > 4000:         # Maximum 4096
-            bool_temp = []
-            for _len in lentemp:
-                bool_temp.append(_len>4000)
-            good_ind = lentemp[bool_temp.index(True)-1]
-            parseddata.append(str_temp[:good_ind]+'\n(...)\n')
-            parseddata.append('(...)\n\n'+str_temp[good_ind:])
-        else:
-            parseddata.append(str_temp)
-        print(lentemp)
-
-    return parseddata
-'''
-
 
 def parsematches(data):
     # data = [[{},{}, ...],
@@ -315,40 +340,7 @@ def parsedict(match):
     # print('parsedict(match):')
     # print(match)
     parsedstr = ''
-    '''
-    if match['typ'] == 'v':                     # Verb
-        i = 0
-        for stammform in match['lat']:
-            if i == 0:
-                parsedstr += '*%s*' % stammform
-            elif stammform != '':
-                parsedstr += ', %s' % stammform
-            i += 1
-        parsedstr += '\n'
 
-    elif match['typ'] == 's':                   # Substantiv
-        i = 0
-        for stammform in match['lat']:
-            if i == 0:
-                parsedstr += '*%s*' % stammform
-            elif stammform != '':
-                parsedstr += ', %s' % stammform
-            i += 1
-        parsedstr += '\n'
-
-    elif match['typ'] == 'a':
-        i = 0
-        for stammform in match['lat']:
-            if i == 0:
-                parsedstr += '*%s*' % stammform
-            elif stammform != '':
-                parsedstr += ', %s' % stammform
-            i += 1
-        parsedstr += '\n'
-
-    elif match['typ'] == 'x':
-        pass
-    '''
     i = 0
     for stammform in match['lat']:
         if i == 0:
@@ -364,7 +356,8 @@ def parsedict(match):
             parsedstr += '\n'
 
     for bedeutung in match['ger'][0]:
-        parsedstr += '--  '
+        # parsedstr += '--  '
+        parsedstr += '-  '
         ptemp = '%s _(%s)_' % (bedeutung[0],
                                ', '.join([x for x in bedeutung[1]]))
         parsedstr += ptemp
@@ -372,16 +365,16 @@ def parsedict(match):
     for beispiel in match['ger'][1]:
         if beispiel != '':
             parsedstr += '_%s_\n' % beispiel
-    # parsedstr += '\n'
-    parsedstr += ('-'*10+'\n')
+    parsedstr += '\n'
+    # parsedstr += ('-'*10+'\n')
 
     return parsedstr
 
 
 if __name__ == '__main__':
 
-    mod = 'all'
-    query = 'a'
+    mod = 'ger'
+    query = 'gott'
 
     if len(sys.argv) > 1:
         mod = sys.argv[2]
@@ -420,8 +413,10 @@ if __name__ == '__main__':
     # print('Anzahl Nachrichten: %s' % len(ltemp))
     print('Anzahl Zeichen')
     print(ltemp)
-    print('Durchschnit:\t%.2f' % (sum(ltemp)/len(ltemp)))
+    # print('Durchschnit:\t%.2f' % (sum(ltemp)/len(ltemp)))
     print('Maximum:\t%s\nMinimum:\t%s' % (max(ltemp), min(ltemp)))
     toomuch = [x for x in ltemp if x>4000]
     print('%s Nachrichten zu gross:' % len(toomuch))
     print(toomuch)
+
+    pprint.pprint(m.matches_fin)

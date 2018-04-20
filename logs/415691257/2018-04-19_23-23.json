@@ -1,0 +1,39 @@
+{
+    "id": 415691257,
+    "first_name": "Eric",
+    "last_name": "Bürki",
+    "start_session": 1524172968,
+    "end_session": 1524173024,
+    "queries": {
+        "0": {
+            "type": "query",
+            "raw_query": "Engel ger",
+            "args": [
+                "engel",
+                "ger"
+            ],
+            "time": 0.21520614624023438,
+            "results": 3
+        },
+        "1": {
+            "type": "query",
+            "raw_query": "Kirche",
+            "args": [
+                "kirche",
+                "all"
+            ],
+            "time": 0.5392861366271973,
+            "results": 0
+        },
+        "2": {
+            "type": "query",
+            "raw_query": "Fraus",
+            "args": [
+                "fraus",
+                "all"
+            ],
+            "time": 0.5086393356323242,
+            "results": 1
+        }
+    }
+}

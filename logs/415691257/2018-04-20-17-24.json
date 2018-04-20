@@ -1,0 +1,45 @@
+{
+    "id": 415691257,
+    "first_name": "Eric",
+    "last_name": "Bürki",
+    "st   art_session": 1524237774,
+    "end_session": 1524237841,
+    "events": {
+        "0": {
+            "type": "query",
+            "raw_query": "haha",
+            "args": {
+                "query": "haha",
+                "mod": "all"
+            },
+            "duration": 0.4503035545349121,
+            "time": 1524237774,
+            "results": 1,
+            "messages": 2
+        },
+        "1": {
+            "type": "query",
+            "raw_query": "Vischer",
+            "args": {
+                "query": "vischer",
+                "mod": "all"
+            },
+            "duration": 0.5239250659942627,
+            "time": 1524237784,
+            "results": 1,
+            "messages": 2
+        },
+        "2": {
+            "type": "query",
+            "raw_query": "<i>",
+            "args": {
+                "query": "<i>",
+                "mod": "all"
+            },
+            "duration": 0.402435302734375,
+            "time": 1524237814,
+            "results": 0,
+            "messages": 1
+        }
+    }
+}

@@ -21,12 +21,15 @@ infotext = '*VociBot* 📖\n' \
 
 fb_text = 'Äussern Sie Ihr Feedback hier.\nFügen Sie bitte Ihre ' \
           'e-Mail-Adresse hinzu, damit der Entwickler ' \
-          'Sie kontaktieren kann.'
+          'Sie kontaktieren kann.\n' \
+          '_"abbrechen"_ bricht den Vorgang ab.'
 
 fb_success = 'Feedback erfolgreich gesendet.\nVielen Dank!'
 
 fb_error = '*🚨 Fehler 🚨:* Feedback konnte nicht gesendet werden. ' \
            'Kontaktiere bitte den Entwickler unter ericbuerki@gmail.com'
+
+fb_abort = 'Feedback abgebrochen'
 
 tl_warning = '*🚧 Warnung 🚧:* Suche zu unscharf. Eventuell werden nicht alle ' \
              'Suchergebnisse angezeigt. Bitte verfeinere deine Suche.\n' \

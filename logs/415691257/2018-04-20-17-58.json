@@ -1,0 +1,21 @@
+{
+    "id": 415691257,
+    "first_name": "Eric",
+    "last_name": "Bürki",
+    "st   art_session": 1524239870,
+    "end_session": 1524239900,
+    "events": {
+        "0": {
+            "type": "query",
+            "raw_query": "Rauch ger",
+            "args": {
+                "query": "rauch",
+                "mod": "ger"
+            },
+            "duration": 0.2006535530090332,
+            "time": 1524239870,
+            "results": 31,
+            "messages": 3
+        }
+    }
+}
