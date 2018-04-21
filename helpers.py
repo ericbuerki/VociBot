@@ -114,7 +114,7 @@ class LoggingHandler(object):
                                                    exc_val))
         else:
             self.close_event()
-        print('%s: Kontextmanager geschlossen')
+        print('%s: Kontextmanager geschlossen' % self.__repr__())
 
     def __repr__(self):
         return 'LoggingHandler (%s %s)' % (self._data['first_name'],

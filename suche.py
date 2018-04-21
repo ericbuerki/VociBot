@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import re
 import sys
 import time
 import csv
@@ -59,7 +59,7 @@ class Searcher(object):
             matched = False
             for j in good_columns:
                 if not matched:
-                    if unidecode(self._query) in unidecode(self.voci_list[i][j])\
+                    if unidecode(self._query) in unidecode(self.voci_list[i][j]) \
                             .lower():
                         match_ind.append([i, j])
                         matches.append(self.voci_list[i])
@@ -107,15 +107,16 @@ class Matches(object):
             self.gc = [1, 2, 3, 4, 7, 9, 13]
         '''
 
-        self._matches_a = []    # Exakte Treffer
-        self._matches_b = []    # Treffer (Anfang/Ende von Wort)
-        self._matches_c = []    # Weniger Exakte Treffer (in Wort)
+        self._matches_a = []  # Exakte Treffer
+        self._matches_b = []  # Treffer (Anfang/Ende von Wort)
+        self._matches_c = []  # Weniger Exakte Treffer (in Wort)
 
-        self._matches = {'exact': [],               # Exakter Treffer
-                         'in_expression': [],       # Wort (exakt) in Ausdruck
-                         'startsends': [],          # beginnt/endet mit Query
-                         'startsends_inexpr': [],   # wie oben, nur in Ausdruck
-                         'unsharp': []}             # Wort in Ausdruck
+        self._matches = {'exact': [],  # Exakter Treffer
+                         'in_expression': [],  # Wort (exakt) in Ausdruck
+                         'startsends': [],  # beginnt/endet mit Query
+                         'in_parenth': [],  # In Klammern
+                         'startsends_inexpr': [],  # wie oben, nur in Ausdruck
+                         'unsharp': []}  # Wort in Ausdruck
 
         self.order()
         self.dedup()
@@ -157,65 +158,165 @@ class Matches(object):
                             self._matches['unsharp'].append(entry)
 
                     else:
-                        if self.transform(entry[j], j) == self._query:
+                        if self._transform(entry[j], j) == self._query:
                             self._matches['exact'].append(entry)
                             break
-                        elif self.transform(entry[j], j) \
+                        elif self._transform(entry[j], j) \
                                 .startswith(self._query) or \
-                                self.transform(entry[j], j) \
+                                self._transform(entry[j], j) \
                                 .endswith(self._query):
                             self._matches['startsends'].append(entry)
                         else:
                             self._matches['unsharp'].append(entry)
         '''
-        
+
+        p_match = re.compile(r'\([^()]*\)')
+        # p_match_in = re.compile(r'\((.*)\)')
+
         for entry in self._matches_raw:
+            print(entry[0])
             matched = {'exact': False,
                        'in_expression': False,
                        'startsends': False,
+                       'in_parenth': False,
                        'startsends_inexpr': False,
                        'unsharp': False}
 
             for j in self._columns[self._mod]:
                 if not matched['exact']:
-                    if ',' in entry[j] or ' ' in entry[j]:
+                    if entry[j] == '':
+                        pass
+                    elif '(' in entry[j]:
+                        if entry[0] == '8362':  # Nur für Debug
+                            print('bingo!')
+                        """
+                        Wenn Eintrag Wörter in Klammern enthält, wird er
+                        aufgeteilt in:
+                            subentries_normal:  Ausserhalb der Klammern
+                            subentries_in_p:    Innerhalb der Klammern
+                        
+                        """
+                        print('entry[j]: %s' % entry[j])
+                        subentries_nt = re.split(p_match, entry[j])
+                        subentries_normal_temp = [x for x in subentries_nt if x]
+                        '''
+                        subentries_normal_temp = []
+                        for x in subentries_nt:
+                            print(x)
+                            if x:
+                                if x.startswith(', '):
+                                    subentries_normal_temp\
+                                        .append(x.replace(', ',''))
+                                else:
+                                    subentries_normal_temp.append(x)
+                        '''
+                        print('subentries_normal_temp: %s' %
+                              subentries_normal_temp)
+
+                        subentries_pt = re.findall(p_match, entry[j])
+                        subentries_in_p_temp = [x for x in subentries_pt if x]
+                        print('subentries_in_p_temp: %s' %
+                              subentries_in_p_temp)
+
+                        subentries_normal = []
+                        for subentries_temp in subentries_normal_temp:
+                            if ',' in subentries_temp:
+                                subentries = subentries_temp.split(', ')
+                            else:
+                                subentries = subentries_temp.split(' ')
+
+                            if len(subentries) == 1 and subentries != ['']:
+                                subentries_normal.append(subentries)
+                            else:
+                                subentries_normal.extend(subentries)
+
+                        print('subentries_normal: %s' % subentries_normal)
+
+                        subentries_in_p = []
+                        for subentries_temp in subentries_in_p_temp:
+                            subentries = subentries_temp \
+                                .replace('(', '') \
+                                .replace(')', '') \
+                                .replace(':', '')
+
+                            if ',' in subentries:
+
+                                subentries = subentries.split(', ')
+                                subentries = subentries.split(' ')
+                            else:
+                                subentries = subentries.split(' ')
+
+                            # subentries = subentries_temp.split(' ')
+                            if len(subentries) == 1 and subentries != ['']:
+                                subentries_in_p.append(subentries)
+                            else:
+                                subentries_in_p.extend(subentries)
+                        print('subentries_in_p: %s' % subentries_in_p)
+                        print('=' * 20)
+
+                        for subentry in subentries_normal:
+                            matched['exact'], \
+                                matched['startsends_inexpr'], \
+                                matched['unsharp'] = self._check_field(subentry,
+                                                                       j)
+                        for subentry in subentries_in_p:
+                            matched['in_parenth'], \
+                                matched['in_parenth'], \
+                                matched['unsharp'] = self._check_field(subentry,
+                                                                       j)
+
+                    elif ',' in entry[j] or ' ' in entry[j]:
+                        """
+                        Wenn der Eintrag mehrere Wörter Enthält oder es sich
+                        um einen Satz handelt.
+                        
+                        TODO: Wenn mehrere Bedeutungen, dann match['exact']
+                        """
                         if ',' in entry[j]:
                             subentries = entry[j].split(', ')
                         else:
                             subentries = entry[j].split(' ')
 
                         for subentry in subentries:
-                            if self.transform(subentry, j) == self._query:
+                            '''
+                            if self._transform(subentry, j) == self._query:
                                 matched['in_expression'] = True
-                            elif self.transform(subentry, j) \
+                            elif self._transform(subentry, j) \
                                     .startswith(self._query) or \
-                                    self.transform(subentry, j) \
-                                    .endswith(self._query):
+                                    self._transform(subentry, j) \
+                                            .endswith(self._query):
                                 matched['startsends_inexpr'] = True
                             else:
                                 matched['unsharp'] = True
-                else:
-                    if self.transform(entry[j], j) == self._query:
-                        matched['exact'] = True
-                    elif self.transform(entry[j], j) \
-                            .startswith(self._query) or \
-                            self.transform(entry[j], j) \
-                            .endswith(self._query):
-                        matched['startsends'] = True
+                            '''
+                            matched['in_expression'], \
+                                matched['startsends_inexpr'], \
+                                matched['unsharp'] = self._check_field(subentry,
+                                                                       j)
                     else:
-                        matched['unsharp'] = True
+                        """
+                        «Normalfall», wenn Eintrag nur ein Wort lang
+                        """
+                        '''
+                        if self._transform(entry[j], j) == self._query:
+                            matched['exact'] = True
+                        elif self._transform(entry[j], j) \
+                                .startswith(self._query) or \
+                                self._transform(entry[j], j) \
+                                        .endswith(self._query):
+                            matched['startsends'] = True
+                        else:
+                            matched['unsharp'] = True
+                        '''
+                        matched['exact'], \
+                            matched['startsends'], \
+                            matched['unsharp'] = self._check_field(entry[j], j)
 
-
-
-            matched_tot = False     # Ob schon einem Dict zugewiesen
+            matched_tot = False  # Ob schon einem Dict zugewiesen
             for key, value in matched.items():
                 if not matched_tot and value:
                     self._matches[key].append(entry)
                     matched_tot = True
-
-
-
-
 
         # for i in (x for x in ind if x not in taken):
         #    matches_c.append(self._matches_raw[i])
@@ -242,7 +343,8 @@ class Matches(object):
             self._matches_c.append(entry)
     '''
 
-    def transform(self, field, j):
+    def _transform(self, field, j):
+        field = field.replace('‹', '').replace('›', '')
         if j in self._columns['lat']:
             return unidecode(field).lower()
         elif j in self._columns['ger']:
@@ -250,6 +352,20 @@ class Matches(object):
         else:
             raise ValueError('%s nicht in self._colums (%s)' % (j,
                                                                 self._columns))
+
+    def _check_field(self, field, j):
+        if isinstance(field, list) and len(field) == 1:
+            field = field[0]
+        matched = [False, False, False]
+        if self._transform(field, j) == self._query:
+            matched[0] = True
+        elif self._transform(field, j).startswith(self._query) or \
+                self._transform(field, j).endswith(self._query):
+            matched[1] = True
+        else:
+            matched[2] = True
+
+        return matched
 
     def dedup(self):
 
@@ -357,7 +473,6 @@ class Matches(object):
         self.matches_fin = fin_temp
 
 
-
 def parsematches(data):
     # data = [[{},{}, ...],
     #         [{},{}, ...],
@@ -375,7 +490,7 @@ def parsematches(data):
                 str_temp += parsedict(_entry)
                 if (len(str_temp) - lastlen) > 1500:
                     splitted = True
-                    parseddata.append(str_temp[lastlen:]+'\n(…)\n')
+                    parseddata.append(str_temp[lastlen:] + '\n(…)\n')
                     lastlen = len(str_temp)
                     lentemp.append(len(str_temp))
             if not splitted:
@@ -424,7 +539,7 @@ def parsedict(match):
 
 if __name__ == '__main__':
 
-    mod = 'all'
+    mod = 'ger'
     query = 'gott'
 
     if len(sys.argv) > 1:
@@ -446,7 +561,7 @@ if __name__ == '__main__':
         print('='*25)
     '''
 
-    print('Dauer: %.4f Sekunden' % (end-start))
+    print('Dauer: %.4f Sekunden' % (end - start))
 
     start1 = time.time()
     p_list = parsematches(m.matches_fin)
@@ -460,7 +575,7 @@ if __name__ == '__main__':
         # print('#'*15)
 
     print('%s Nachrichten generiert in %.4f s' % (len(ltemp),
-                                                  end1-start1))
+                                                  end1 - start1))
     '''
     # print('Anzahl Nachrichten: %s' % len(ltemp))
     print('Anzahl Zeichen')
@@ -471,5 +586,8 @@ if __name__ == '__main__':
     print('%s Nachrichten zu gross:' % len(toomuch))
     print(toomuch)
     '''
-    print('m.matches_fin')
-    pprint.pprint(m.matches_fin)
+    # print('m.matches_fin')
+    # pprint.pprint(m.matches_fin)
+    for message in p_list:
+        print(message)
+        print('*'*20)
