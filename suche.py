@@ -21,7 +21,7 @@ class Searcher(object):
             self.voci_list = list(reader)
 
         # Suchstring (bleibt bis zur nächsten Suche)
-        self.query = ''
+        self._query = ''
 
         # Treffer (Zeilen in self.voci_list)
         self.match_ind = []
@@ -31,7 +31,7 @@ class Searcher(object):
 
     def search(self, query, mod):
         # query:    Suchstring
-        self.query = query
+        self._query = query
         # mod:      'lat':  Lateinisch
         #           'ger':  Deutsch
         #           'all':  Alles
@@ -59,7 +59,7 @@ class Searcher(object):
             matched = False
             for j in good_columns:
                 if not matched:
-                    if unidecode(self.query) in unidecode(self.voci_list[i][j])\
+                    if unidecode(self._query) in unidecode(self.voci_list[i][j])\
                             .lower():
                         match_ind.append([i, j])
                         matches.append(self.voci_list[i])
@@ -79,108 +79,149 @@ class Searcher(object):
 class Matches(object):
     def __init__(self, matches, query, mod):
         # Liste mit Treffern
-        self.matches_raw = matches
+        self._matches_raw = matches
 
         # Liste mit Treffern, sortiert
-        self.matches_list = []
+        self._matches_list = []
 
         # Liste mit 2 Dicts,
         self.matches_fin = []
 
-        # Typ des Objekt
-        #self.typ = typ
-
         # Suchstring
-        self.query = query
+        self._query = query
+        self._mod = mod
 
+        self._columns = {'lat': [1, 2, 3, 4, 13],
+                         'ger': [7, 9],
+                         'all': [1, 2, 3, 4, 7, 9, 13]}
+        '''
         # Art der Suche
-
         if mod == 'lat':
             print('%s == \'lat\'' % mod)
             self.gc = [1, 2, 3, 4, 13]
         elif mod == 'ger':
             print('%s == \'ger\'' % mod)
             self.gc = [7, 9]
-        #if mod == 'all':
         else:
             print('%s == \'all\'' % mod)
             self.gc = [1, 2, 3, 4, 7, 9, 13]
+        '''
 
         self._matches_a = []    # Exakte Treffer
         self._matches_b = []    # Treffer (Anfang/Ende von Wort)
         self._matches_c = []    # Weniger Exakte Treffer (in Wort)
 
+        self._matches = {'exact': [],               # Exakter Treffer
+                         'in_expression': [],       # Wort (exakt) in Ausdruck
+                         'startsends': [],          # beginnt/endet mit Query
+                         'startsends_inexpr': [],   # wie oben, nur in Ausdruck
+                         'unsharp': []}             # Wort in Ausdruck
+
         self.order()
         self.dedup()
 
     def order(self):
-
-
-        ind = list(range(len(self.matches_raw)))
         '''
-        for i in ind:
+        for entry in self._matches_raw:
             matched = False
-            for j in self.gc:
+            splittable = False
+            matched_dict = {}
+
+            for j in self._columns[self._mod]:
                 if not matched:
-                    if unidecode(self.matches_raw[i][j]).lower() \
-                            .startswith(unidecode(self.query)) or \
-                            unidecode(self.matches_raw[i][j]).lower() \
-                            .endswith(unidecode(self.query)):
-                        if unidecode(self.matches_raw[i][j]).lower() == \
-                                unidecode(self.query):
-                            matches_a.append(self.matches_raw[i])
+
+                    if ',' in entry[j] or ' ' in entry[j]:
+
+                        if ',' in entry[j]:
+                            subentries = entry[j].split(', ')
                         else:
-                            matches_b.append(self.matches_raw[i])
-                        taken.append(i)
-                        matched = True
+                            subentries = entry[j].split(' ')
+
+                        matched_a = False
+                        matched_b = False
+
+                        for subentry in subentries:
+                            if unidecode(subentry).lower() == unidecode(self._query):
+                                matched_a = True
+                            elif unidecode(subentry).lower() \
+                                    .startswith(unidecode(self._query)) or \
+                                    unidecode(subentry).lower() \
+                                    .endswith(unidecode(self._query)):
+                                matched_b = True
+
+                        if matched_a:
+                            self._matches['in_expression'].append(entry)
+                        elif matched_b:
+                            self._matches['startsends'].append(entry)
+                        else:
+                            self._matches['unsharp'].append(entry)
+
+                    else:
+                        if self.transform(entry[j], j) == self._query:
+                            self._matches['exact'].append(entry)
+                            break
+                        elif self.transform(entry[j], j) \
+                                .startswith(self._query) or \
+                                self.transform(entry[j], j) \
+                                .endswith(self._query):
+                            self._matches['startsends'].append(entry)
+                        else:
+                            self._matches['unsharp'].append(entry)
         '''
+        
+        for entry in self._matches_raw:
+            matched = {'exact': False,
+                       'in_expression': False,
+                       'startsends': False,
+                       'startsends_inexpr': False,
+                       'unsharp': False}
 
-        for entry in self.matches_raw:
-            for j in self.gc:
-                if ',' in entry[j] or ' ' in entry[j]:
+            for j in self._columns[self._mod]:
+                if not matched['exact']:
+                    if ',' in entry[j] or ' ' in entry[j]:
+                        if ',' in entry[j]:
+                            subentries = entry[j].split(', ')
+                        else:
+                            subentries = entry[j].split(' ')
 
-                    if ',' in entry[j]:
-                        subentries = entry[j].split(',')
-                    else:
-                        subentries = entry[j].split(' ')
-
-                    matched_a = False
-                    matched_b = False
-
-                    for subentry in subentries:
-
-                        if unidecode(subentry).lower() == unidecode(self.query):
-                            matched_a = True
-                        elif unidecode(subentry).lower() \
-                                .startswith(unidecode(self.query)) or \
-                                unidecode(subentry).lower() \
-                                .endswith(unidecode(self.query)):
-                            matched_b = True
-
-                    if matched_a:
-                        self._matches_a.append(entry)
-                    elif matched_b:
-                        self._matches_b.append(entry)
-                    else:
-                        self._matches_c.append(entry)
-
+                        for subentry in subentries:
+                            if self.transform(subentry, j) == self._query:
+                                matched['in_expression'] = True
+                            elif self.transform(subentry, j) \
+                                    .startswith(self._query) or \
+                                    self.transform(subentry, j) \
+                                    .endswith(self._query):
+                                matched['startsends_inexpr'] = True
+                            else:
+                                matched['unsharp'] = True
                 else:
-                    if unidecode(entry[j]).lower() == unidecode(self.query):
-                        self._matches_a.append(entry)
-                    elif unidecode(entry[j]).lower() \
-                            .startswith(unidecode(self.query)) or \
-                            unidecode(entry[j]).lower() \
-                            .endswith(unidecode(self.query)):
-                        self._matches_b.append(entry)
+                    if self.transform(entry[j], j) == self._query:
+                        matched['exact'] = True
+                    elif self.transform(entry[j], j) \
+                            .startswith(self._query) or \
+                            self.transform(entry[j], j) \
+                            .endswith(self._query):
+                        matched['startsends'] = True
                     else:
-                        self._matches_c.append(entry)
+                        matched['unsharp'] = True
+
+
+
+            matched_tot = False     # Ob schon einem Dict zugewiesen
+            for key, value in matched.items():
+                if not matched_tot and value:
+                    self._matches[key].append(entry)
+                    matched_tot = True
+
+
+
+
 
         # for i in (x for x in ind if x not in taken):
-        #    matches_c.append(self.matches_raw[i])
+        #    matches_c.append(self._matches_raw[i])
 
-        self.matches_list = [self._matches_a,
-                             self._matches_b,
-                             self._matches_c]
+        pprint.pprint(self._matches)
+        self._matches_list = [x for _, x in self._matches.items()]
         # print(matches_a)
 
     '''
@@ -190,22 +231,31 @@ class Matches(object):
         else:
             field = subentry
 
-        if unidecode(field).lower() == unidecode(self.query):
+        if unidecode(field).lower() == unidecode(self._query):
             self._matches_a.append(entry)
         elif unidecode(field).lower() \
-                .startswith(unidecode(self.query)) or \
+                .startswith(unidecode(self._query)) or \
                 unidecode(field).lower() \
-                .endswith(unidecode(self.query)):
+                .endswith(unidecode(self._query)):
             self._matches_b.append(entry)
         else:
             self._matches_c.append(entry)
     '''
 
+    def transform(self, field, j):
+        if j in self._columns['lat']:
+            return unidecode(field).lower()
+        elif j in self._columns['ger']:
+            return field.lower()
+        else:
+            raise ValueError('%s nicht in self._colums (%s)' % (j,
+                                                                self._columns))
+
     def dedup(self):
 
         fin_temp = []
 
-        for matches in self.matches_list:
+        for matches in self._matches_list:
 
             m_temp = []
 
@@ -307,6 +357,7 @@ class Matches(object):
         self.matches_fin = fin_temp
 
 
+
 def parsematches(data):
     # data = [[{},{}, ...],
     #         [{},{}, ...],
@@ -373,7 +424,7 @@ def parsedict(match):
 
 if __name__ == '__main__':
 
-    mod = 'ger'
+    mod = 'all'
     query = 'gott'
 
     if len(sys.argv) > 1:
@@ -410,6 +461,7 @@ if __name__ == '__main__':
 
     print('%s Nachrichten generiert in %.4f s' % (len(ltemp),
                                                   end1-start1))
+    '''
     # print('Anzahl Nachrichten: %s' % len(ltemp))
     print('Anzahl Zeichen')
     print(ltemp)
@@ -418,5 +470,6 @@ if __name__ == '__main__':
     toomuch = [x for x in ltemp if x>4000]
     print('%s Nachrichten zu gross:' % len(toomuch))
     print(toomuch)
-
+    '''
+    print('m.matches_fin')
     pprint.pprint(m.matches_fin)
